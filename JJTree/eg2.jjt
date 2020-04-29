@@ -1,0 +1,138 @@
+/**
+ *
+ * Copyright (c) 1996-1997 Sun Microsystems, Inc.
+ *
+ * Use of this file and the system it is part of is constrained by the
+ * file COPYRIGHT in the root directory of this system.
+ *
+ */
+
+options {
+  MULTI=true; // an option for JJTree
+              // set to build a multi mode tree
+              // (with different types of nodes)
+}
+
+PARSER_BEGIN(eg2)
+
+class eg2 {
+  public static void main(String args[]) {
+    System.out.println("Reading from standard input...");
+    eg2 t = new eg2(System.in);
+    try {
+      ASTStart n = t.Start();
+      System.out.println("The binary tree representation:");
+      n.dump("");
+      System.out.println("The expression from the binary tree:");
+      n.printExpr();
+      System.out.println("\nThe binary tree representation of the reduced expression:");
+      n.reduce();
+      n.dump(" ");
+      System.out.println("The expression from the reduced binary tree:");
+      n.printExpr();
+      System.out.println("\nThank you.");
+    } catch (Exception e) {
+      System.out.println("Oops.");
+      System.out.println(e.getMessage());
+      e.printStackTrace();
+    }
+  }
+}
+
+PARSER_END(eg2)
+
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| <"//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+| <"/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/">
+}
+
+TOKEN : /* LITERALS */
+{
+  < INTEGER_LITERAL:
+        <DECIMAL_LITERAL> (["l","L"])?
+      | <HEX_LITERAL> (["l","L"])?
+      | <OCTAL_LITERAL> (["l","L"])?
+  >
+|
+  < #DECIMAL_LITERAL: ["1"-"9"] (["0"-"9"])* >
+|
+  < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+  < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+|
+  < #LETTER: ["_","a"-"z","A"-"Z"] >
+|
+  < #DIGIT: ["0"-"9"] >
+}
+
+ASTStart Start() : {}
+{
+  Expression()
+  { return jjtThis; }
+}
+
+
+void Expression() #void : {}
+{
+  AdditiveExpression()
+}
+
+void AdditiveExpression() #void : {}
+{
+  SubtractiveExpression() ( "+"  SubtractiveExpression() #Add(2) )*
+}
+
+void SubtractiveExpression() #void : {}
+{
+  MultiplicativeExpression() ( "-"  MultiplicativeExpression() #Subtract(2) )*
+}
+
+void MultiplicativeExpression() #void : {}
+{ 
+  DivideExpression() ( "*" DivideExpression() #Mult(2))*  
+}
+
+void DivideExpression() #void : {}
+{
+  ModuloExpression() ("/" ModuloExpression() #Divide(2))*
+}
+
+void ModuloExpression() #void : {}
+{
+  UnaryExpression() ("%" UnaryExpression() #Modulo(2))*
+}
+
+void UnaryExpression() #void : {}
+{
+  "(" Expression() ")" | MyID() | Integer()
+}
+
+void MyID() :
+{
+  Token t;
+}
+{
+  t=<IDENTIFIER>
+  {
+    jjtThis.setName(t.image);
+  }
+}
+
+void Integer() : {Token t;}
+{
+  t=<INTEGER_LITERAL>
+  {
+  jjtThis.setVal(Integer.valueOf(t.image));
+  }
+}
